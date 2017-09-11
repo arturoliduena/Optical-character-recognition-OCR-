@@ -1,6 +1,9 @@
 import React, { Component } from 'react';
-import { Text, View, StyleSheet, TouchableOpacity, CameraRoll, Image, ScrollView, TouchableHighlight, Alert } from 'react-native';
+import { Text, View, StyleSheet, TouchableOpacity, CameraRoll, Image, ScrollView, TouchableHighlight, Alert, NativeModules, ToastAndroid } from 'react-native';
 import { host } from '../../index.android.js';
+import ImageResizer from 'react-native-image-resizer';
+import Spinner from 'react-native-spinkit';
+import { StackNavigator, NavigationActions } from 'react-navigation';
 
 export default class SinglePhoto extends Component { 
   constructor(props) {
@@ -13,17 +16,153 @@ export default class SinglePhoto extends Component {
       selectedPhoto: false,
       user: this.props.navigation.state.params.user,
       task: this.props.navigation.state.params.task,
+      loading: false,
+      textArray: [],
+      err: null,
     };
     this.send = this.send.bind(this);
     this.changeStylePhoto = this.changeStylePhoto.bind(this);
     this.sure = this.sure.bind(this);
     this.cancelar = this.cancelar.bind(this);
+    this.text = this.text.bind(this);
+    this.goHome = this.goHome.bind(this);
+    this.back = this.back.bind(this);
   };
 
   static navigationOptions = {
     title: 'SinglePhoto',
   };
 
+componentWillMount(){
+  this.setState({
+      loading: true
+  });
+}
+
+
+  render(){
+    console.log('loading',this.state.loading)
+   return (
+    <View style={styles.container}>
+      <View style={this.state.selectedPhoto?styles.containerMax:styles.containerMin}>
+      <TouchableOpacity
+        style={this.state.selectedPhoto?styles.containerMax:styles.containerMin}
+        onPress={this.changeStylePhoto}
+      >
+        <Image style={this.state.selectedPhoto?styles.photoMax:styles.photoMin} source={{ uri: this.props.navigation.state.params.data.mediaUri }} >
+
+        {(!this.state.loading)?
+          <View/>:
+          <View>
+            <Spinner
+              style={styles.spinner}
+              isVisible={true}
+              size={400}
+              type={'Pulse'}
+              color={'white'}/>
+          </View>
+        }
+
+        </Image>
+      </TouchableOpacity>
+      </View>
+      <ScrollView style={{flex: 1, backgroundColor: 'white'}}>
+        {this.text()}
+      </ScrollView>
+      
+      <TouchableOpacity
+          style={styles.Button}
+          onPress={this.goHome}
+//          onPress={this.props.navigation.navigate('Home')}
+      >
+        <Image
+            style={styles.icon}
+            source={require('../assets/icon_send.png')}
+        />
+      </TouchableOpacity>
+    </View>
+
+   )
+  }
+
+  goHome(){
+  const resetAction = NavigationActions.reset({
+    index: 0,
+    actions: [
+      NavigationActions.navigate({ routeName: 'Home'})
+    ]
+  })
+  this.props.navigation.dispatch(resetAction)
+  }
+
+  back() {
+  const backAction = NavigationActions.back({
+    key: null
+  })
+  this.props.navigation.dispatch(backAction)
+    
+  }
+
+  componentDidMount(){
+    resizeImage(this.props.navigation.state.params.data.path, (resizedImageUri) => {
+      NativeModules.RNImageToBase64.getBase64String(resizedImageUri, async (err, base64) => {
+        // Do something with the base64 string
+        if (err) {
+          console.error(err)
+        }
+        console.log('converted to base64');
+        // ToastAndroid.show('converted to base64', ToastAndroid.SHORT);
+        let result = await checkForTextDetection(base64);
+        console.log(result);
+        let textArray;
+        console.log('textArray', textArray);
+        console.log('new textArray', Array.isArray(result.responses[0].textAnnotations))
+        if(Array.isArray(result.responses[0].textAnnotations)){
+        textArray = result.responses[0].textAnnotations.map(elem => elem.description)
+        }
+        // ToastAndroid.show(JSON.stringify(result), ToastAndroid.SHORT);
+
+        this.setState({
+          loading: false, textArray: textArray 
+        })
+      })
+
+    })
+//    .catch(err => console.error(err));
+
+  }
+
+  text(){
+    console.log('state', this.state)
+    if(this.state.loading) return <View><Text>loading text ...</Text></View>
+    else if(this.state.textArray){
+      return(
+        <View>
+          <Text style={{backgroundColor: '#3498DB'}}>text Complete</Text>
+          <Text style={{backgroundColor: 'white'}} >{this.state.textArray[0]}</Text>
+          <Text style={{backgroundColor: '#3498DB'}}>each word</Text>
+          {this.state.textArray.filter((a,i) => i !== 0).map((elem, i) => <Text key={i} style={{backgroundColor: 'white'}}>- {elem}</Text>)}
+        </View>
+      )
+    }
+    else {
+     Alert.alert(
+      'Not found',
+      'text not found, take photo again' ,
+      [
+        {
+          text: 'Accept',
+          onPress: (this.back)
+        },
+        {
+          text: 'Cancel',
+          onPress: (this.cancelar)
+        }
+      ]
+      )
+    }
+
+  }
 
   send(){
 
@@ -108,61 +247,94 @@ export default class SinglePhoto extends Component {
     console.log('cancelar');
   }
 
-
-  render(){
-   return (
-      <View style={this.state.selectedPhoto?styles.containerMax:styles.containerMin}>
-      <TouchableOpacity
-        style={this.state.selectedPhoto?styles.containerMax:styles.containerMin}
-        onPress={this.changeStylePhoto}
-      >
-        <Image style={this.state.selectedPhoto?styles.photoMax:styles.photoMin} source={{ uri: this.props.navigation.state.params.data.mediaUri }} >
-
-        </Image>
-
-        <TouchableOpacity
-            style={styles.Button}
-            onPress={this.sure}
-        >
-          <Image
-              style={styles.icon}
-              source={require('../assets/icon_send.png')}
-          />
-        </TouchableOpacity>
-      </TouchableOpacity>
-      </View>
-
-   )
-  }
-
 }
 
 
+// according to https://cloud.google.com/vision/docs/supported-files, recommended image size for text detection is 1024x768
+function resizeImage(path, callback, width = 1024, height = 768) {
+  ImageResizer.createResizedImage(path, width, height, 'JPEG', 100).then((resizedImageUri) => {
+    callback(resizedImageUri);
+
+  }).catch((err) => {
+    console.error(err)
+  });
+}
+
+// API call to google cloud
+async function checkForTextDetection(base64) {
+
+return await
+  fetch('https://vision.googleapis.com/v1/images:annotate?key=AIzaSyBcX1IYn6jGU-mTOLoRXT03slD20ZJjgak', {
+    method: 'POST',
+    body: JSON.stringify({
+      "requests": [
+        {
+          "image": {
+            "content": base64
+          },
+          "features": [
+            {
+              "type": "TEXT_DETECTION"
+            }
+          ]
+        }
+      ]
+    })
+  }).then((response) => {
+    console.log('response', response)
+    return response.json();
+  }, (err) => {
+    console.error('promise rejected')
+    console.error(err)
+  });
+}
+
 const styles = StyleSheet.create({
-    containerMin: {
-      backgroundColor: '#F5FCFF',
-      flex: 1,
-      alignItems: 'center',
-    },
-    containerMax: {
-      backgroundColor: '#F5FCFF',
-      flex: 1,
-    },
-    photoMin: {
-      width: 150,
-      height: 150,
-    },
-    photoMax: {
-      flex: 1,
-    },
-    Button: {
-      padding: 10,
-      borderRadius: 40,
-      width: 60,
+  container: {
+    flex: 1,
+  },
+  containerMin: {
+    backgroundColor: '#F5FCFF',
+    flex: 1,
+    alignItems: 'center'
+  },
+  containerMax: {
+    backgroundColor: '#F5FCFF',
+    flex: 1,
+  },
+  photoMin: {
+    width: 250,
+    height: 250,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  photoMax: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  Button: {
+    padding: 10,
+    borderRadius: 40,
+    width: 60,
   },
     icon: {
       width: 40,
       height: 40,
-    }
+  },
+  capture: {
+    flex: 0,
+    backgroundColor: '#fff',
+    borderRadius: 50,
+    padding: 10,
+    margin: 50,
+    height: 70,
+    width: 70,
+    borderColor: 'rgba(0, 0, 0, 0.3)',
+    borderWidth: 15
+  },
+  spinner: {
+    marginBottom: 50
+  },
 });
 

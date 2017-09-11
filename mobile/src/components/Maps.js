@@ -17,21 +17,11 @@ export default class Maps extends Component {
       longitude: null,
       error: null,
       location: false,
-      stores: null,
+      stores: [],
     };
   };
 
 componentWillMount(){
-  fetch(`${host}/store`, {
-    credentials: 'include',
-   })
-      .then(response => response.json())
-      .then(data => {
-        this.setState({
-        stores: data
-      })
-
-      }).catch(err => (console.log(err)))
 
 navigator.geolocation.getCurrentPosition(
   (position) => {
@@ -55,7 +45,7 @@ navigator.geolocation.getCurrentPosition(
 }
 
   render() {
-    if (!this.state.location || !this.state.stores) 
+    if (!this.state.location) 
       return (
         <View style={{flex:1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'white'}}>
         <Image

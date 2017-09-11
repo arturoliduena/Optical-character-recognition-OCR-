@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { Text, View, StyleSheet, TouchableOpacity } from 'react-native';
+import { Text, View, StyleSheet, TouchableOpacity, NetInfo} from 'react-native';
 import { host } from '../../index.android.js';
 
 export default class Menu extends Component { 
@@ -10,7 +10,6 @@ export default class Menu extends Component {
   static navigationOptions = {
     title: 'Menu',
   };
-
 
   render(){
    return (
@@ -27,7 +26,7 @@ export default class Menu extends Component {
       </TouchableOpacity>
       <TouchableOpacity activeOpacity= {0.5} onPress={() => this.props.navigation.navigate('Maps')}>
             <View style= {styles.button}>
-              <Text style= {styles.buttonText}>Ver Tiendas</Text>
+              <Text style= {styles.buttonText}>Maps</Text>
             </View>
       </TouchableOpacity>
      </View>

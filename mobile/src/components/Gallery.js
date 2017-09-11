@@ -22,7 +22,7 @@ export default class Gallery extends Component {
 componentDidMount() {
     console.log(this.state)
     CameraRoll.getPhotos({first: 20,
-                          assetType: 'All'
+          assetType: 'All'
     })
     .then(r => this.setState({ photos: r.edges }))
     .then(() => console.log(this.state))
@@ -41,9 +41,9 @@ componentDidMount() {
    return (
       <ScrollView style={styles.container}>
         <View style={styles.imageGrid}>
-        { this.state.photos.map((image) => {
+        { this.state.photos.map((image, i) => {
             return (
-                <TouchableHighlight>
+                <TouchableHighlight key={i}>
                 <Image style={styles.image} source={{ uri: image.node.image.uri }} />
                 </TouchableHighlight>
             );

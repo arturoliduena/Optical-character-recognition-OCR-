@@ -1,9 +1,9 @@
 
 import { AppRegistry } from 'react-native';
-import { StackNavigator } from 'react-navigation';
+import { StackNavigator, NavigationActions } from 'react-navigation';
 import Geolocation from './src/components/Geolocation';
 import Maps from './src/components/Maps';
-import Camera from './src/components/Camera';
+import Camera from './src/components/Camera3';
 import Gallery from './src/components/Gallery';
 import SinglePhoto from './src/components/SinglePhoto';
 import Menu from './src/components/Menu';
